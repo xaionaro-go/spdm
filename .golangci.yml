@@ -1,0 +1,14 @@
+run:
+  build-tags:
+    - reference
+
+linters:
+  enable:
+    - gofmt
+    - gocyclo
+
+linters-settings:
+  gofmt:
+    simplify: true
+  gocyclo:
+    min-complexity: 15
