@@ -59,6 +59,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y qemu-system-x86 linux-image-generic
+          sudo chmod +r /boot/vmlinuz-*
 
       - name: Run QEMU E2E tests
         run: make test-qemu
