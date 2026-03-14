@@ -22,6 +22,7 @@ import (
 func TestQEMU_GoRequester_RefResponder(t *testing.T) {
 	skipIfNoQEMU(t)
 	skipIfNoKernel(t)
+	skipIfNoSPDMSupport(t)
 
 	emuBin := os.Getenv("SPDM_EMU_BIN")
 	if emuBin == "" {

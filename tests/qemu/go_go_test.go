@@ -17,6 +17,7 @@ import (
 func TestQEMU_GoRequester_GoResponder(t *testing.T) {
 	skipIfNoQEMU(t)
 	skipIfNoKernel(t)
+	skipIfNoSPDMSupport(t)
 
 	guestBin := buildGuestBinary(t)
 	initramfs := buildInitramfs(t, guestBin)

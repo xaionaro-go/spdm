@@ -174,3 +174,24 @@ func skipIfNoKernel(t *testing.T) {
 		t.Skipf("kernel not available: %v", err)
 	}
 }
+
+// skipIfNoSPDMSupport skips the test if QEMU lacks NVMe SPDM support
+// (the spdm_port property). Stock QEMU builds don't include this;
+// it requires an SPDM-patched QEMU.
+func skipIfNoSPDMSupport(t *testing.T) {
+	t.Helper()
+
+	qemuBin, err := findQEMU()
+	if err != nil {
+		t.Skipf("QEMU not available: %v", err)
+	}
+
+	out, err := exec.Command(qemuBin, "-device", "nvme,help").CombinedOutput()
+	if err != nil {
+		t.Skipf("failed to probe QEMU NVMe properties: %v", err)
+	}
+
+	if !strings.Contains(string(out), "spdm_port") {
+		t.Skip("QEMU NVMe device does not support spdm_port (SPDM-patched QEMU required)")
+	}
+}
