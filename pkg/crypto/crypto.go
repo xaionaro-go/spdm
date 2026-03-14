@@ -21,10 +21,16 @@ type Verifier interface {
 	Verify(a algo.BaseAsymAlgo, pub gocrypto.PublicKey, digest, sig []byte) error
 }
 
-// KeyAgreement performs Diffie-Hellman key exchange per DSP0274 Section 10.12.
+// DHEKeyPair encapsulates a DHE private key and its associated operations.
+// The private key never leaves the key pair, following the crypto.Signer pattern.
+type DHEKeyPair interface {
+	PublicKey() []byte
+	ComputeSharedSecret(peerPublic []byte) (sharedSecret []byte, err error)
+}
+
+// KeyAgreement generates DHE key pairs per DSP0274 Section 10.12.
 type KeyAgreement interface {
-	GenerateDHE(group algo.DHENamedGroup) (privateKey interface{}, publicKey []byte, err error)
-	ComputeDHE(group algo.DHENamedGroup, privateKey interface{}, peerPublic []byte) (sharedSecret []byte, err error)
+	GenerateDHE(group algo.DHENamedGroup) (DHEKeyPair, error)
 }
 
 // AEAD performs authenticated encryption with associated data per DSP0277 Section 6.

@@ -5,6 +5,7 @@ import (
 
 	"github.com/facebookincubator/go-belt/tool/logger"
 
+	"github.com/xaionaro-go/spdm/pkg/gen/algo"
 	"github.com/xaionaro-go/spdm/pkg/gen/codes"
 	"github.com/xaionaro-go/spdm/pkg/gen/msgs"
 	"github.com/xaionaro-go/spdm/pkg/gen/raw"
@@ -33,7 +34,7 @@ func (r *Responder) handleGetVersion(ctx context.Context, request []byte) ([]byt
 
 	resp := &msgs.VersionResponse{
 		Header: msgs.MessageHeader{SPDMMessageHeader: raw.SPDMMessageHeader{
-			SPDMVersion:         0x10,
+			SPDMVersion:         uint8(algo.Version10),
 			RequestResponseCode: uint8(codes.ResponseVersion),
 		}},
 		VersionNumberEntryCount: uint8(len(entries)),

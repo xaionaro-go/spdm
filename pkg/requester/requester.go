@@ -27,6 +27,13 @@ const (
 	StateAuthenticated
 )
 
+const (
+	// defaultDataTransferSize is the minimum DataTransferSize per DSP0274 Section 10.4.
+	defaultDataTransferSize = 4096
+	// defaultMaxSPDMmsgSize is the default maximum SPDM message size per DSP0274 Section 10.4.
+	defaultMaxSPDMmsgSize = 65536
+)
+
 // ConnectionInfo holds the negotiated connection parameters.
 type ConnectionInfo struct {
 	PeerVersion  algo.Version
@@ -76,10 +83,10 @@ type Requester struct {
 // New creates a new Requester with the given configuration.
 func New(cfg Config) *Requester {
 	if cfg.DataTransferSize == 0 {
-		cfg.DataTransferSize = 4096
+		cfg.DataTransferSize = defaultDataTransferSize
 	}
 	if cfg.MaxSPDMmsgSize == 0 {
-		cfg.MaxSPDMmsgSize = 65536
+		cfg.MaxSPDMmsgSize = defaultMaxSPDMmsgSize
 	}
 	return &Requester{
 		cfg:      cfg,

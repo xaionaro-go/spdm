@@ -211,13 +211,14 @@ func (r *Responder) handleKeyExchange(ctx context.Context, request []byte) ([]by
 	logger.Debugf(ctx, "handleKeyExchange: slot=%d hashType=%d DHE=%s", slotID, hashType, r.dheGroup)
 
 	// Generate responder DHE keypair.
-	privKey, pubKey, err := r.cfg.Crypto.KeyAgreement.GenerateDHE(r.dheGroup)
+	keyPair, err := r.cfg.Crypto.KeyAgreement.GenerateDHE(r.dheGroup)
 	if err != nil {
 		return r.buildError(codes.ErrorUnspecified, 0), nil
 	}
+	pubKey := keyPair.PublicKey()
 
 	// Compute shared secret from requester's public key.
-	sharedSecret, err := r.cfg.Crypto.KeyAgreement.ComputeDHE(r.dheGroup, privKey, req.ExchangeData)
+	sharedSecret, err := keyPair.ComputeSharedSecret(req.ExchangeData)
 	if err != nil {
 		return r.buildError(codes.ErrorUnspecified, 0), nil
 	}

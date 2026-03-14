@@ -529,34 +529,27 @@ func TestEdge_VerifyUnsupportedAlgo(t *testing.T) {
 
 func TestEdge_ECDHCurveP521(t *testing.T) {
 	ka := &stdlib.StdKeyAgreement{}
-	priv, pub, err := ka.GenerateDHE(algo.DHESECP521R1)
+	kp, err := ka.GenerateDHE(algo.DHESECP521R1)
 	require.NoError(t, err)
-	assert.NotNil(t, priv)
+	pub := kp.PublicKey()
 	assert.NotEmpty(t, pub)
 
 	// Compute shared secret with self.
-	secret, err := ka.ComputeDHE(algo.DHESECP521R1, priv, pub)
+	secret, err := kp.ComputeSharedSecret(pub)
 	require.NoError(t, err)
 	assert.NotEmpty(t, secret)
 }
 
 func TestEdge_ECDHFFDHE2048Supported(t *testing.T) {
 	ka := &stdlib.StdKeyAgreement{}
-	priv, pub, err := ka.GenerateDHE(algo.DHEFFDHE2048)
+	kp, err := ka.GenerateDHE(algo.DHEFFDHE2048)
 	require.NoError(t, err)
-	assert.NotNil(t, priv)
+	pub := kp.PublicKey()
 	assert.Len(t, pub, algo.DHEFFDHE2048.DHEPublicKeySize())
 
-	secret, err := ka.ComputeDHE(algo.DHEFFDHE2048, priv, pub)
+	secret, err := kp.ComputeSharedSecret(pub)
 	require.NoError(t, err)
 	assert.Len(t, secret, algo.DHEFFDHE2048.SharedSecretSize())
-}
-
-func TestEdge_ComputeDHEWrongKeyType(t *testing.T) {
-	ka := &stdlib.StdKeyAgreement{}
-	_, err := ka.ComputeDHE(algo.DHESECP256R1, "not-a-key", []byte{0x01})
-	assert.Error(t, err)
-	assert.Contains(t, err.Error(), "expected")
 }
 
 func TestEdge_AEADChaCha20(t *testing.T) {
@@ -2228,14 +2221,14 @@ func TestEdge_TransportHeaderSizes(t *testing.T) {
 func TestEdge_DHEP384Roundtrip(t *testing.T) {
 	ka := &stdlib.StdKeyAgreement{}
 
-	privA, pubA, err := ka.GenerateDHE(algo.DHESECP384R1)
+	kpA, err := ka.GenerateDHE(algo.DHESECP384R1)
 	require.NoError(t, err)
-	privB, pubB, err := ka.GenerateDHE(algo.DHESECP384R1)
+	kpB, err := ka.GenerateDHE(algo.DHESECP384R1)
 	require.NoError(t, err)
 
-	secretA, err := ka.ComputeDHE(algo.DHESECP384R1, privA, pubB)
+	secretA, err := kpA.ComputeSharedSecret(kpB.PublicKey())
 	require.NoError(t, err)
-	secretB, err := ka.ComputeDHE(algo.DHESECP384R1, privB, pubA)
+	secretB, err := kpB.ComputeSharedSecret(kpA.PublicKey())
 	require.NoError(t, err)
 
 	assert.Equal(t, secretA, secretB)
@@ -3208,29 +3201,28 @@ func TestEdge_KeyExchangeResponseUnmarshalShortRandom(t *testing.T) {
 
 func TestEdge_DHEGenerateP521(t *testing.T) {
 	ka := &stdlib.StdKeyAgreement{}
-	priv, pub, err := ka.GenerateDHE(algo.DHESECP521R1)
+	kp, err := ka.GenerateDHE(algo.DHESECP521R1)
 	require.NoError(t, err)
-	require.NotNil(t, priv)
-	require.NotEmpty(t, pub)
+	require.NotEmpty(t, kp.PublicKey())
 }
 
 func TestEdge_DHEGenerateFFDHE(t *testing.T) {
 	ka := &stdlib.StdKeyAgreement{}
-	priv, pub, err := ka.GenerateDHE(algo.DHEFFDHE2048)
+	kp, err := ka.GenerateDHE(algo.DHEFFDHE2048)
 	require.NoError(t, err)
-	assert.NotNil(t, priv)
-	assert.Len(t, pub, algo.DHEFFDHE2048.DHEPublicKeySize())
+	assert.Len(t, kp.PublicKey(), algo.DHEFFDHE2048.DHEPublicKeySize())
 }
 
 func TestEdge_DHEGenerateUnsupported(t *testing.T) {
 	ka := &stdlib.StdKeyAgreement{}
-	_, _, err := ka.GenerateDHE(algo.DHENamedGroup(0))
+	_, err := ka.GenerateDHE(algo.DHENamedGroup(0))
 	assert.Error(t, err)
 }
 
 func TestEdge_DHEComputeUnsupported(t *testing.T) {
 	ka := &stdlib.StdKeyAgreement{}
-	_, err := ka.ComputeDHE(algo.DHENamedGroup(0), nil, nil)
+	// Unsupported group is now rejected at generation time.
+	_, err := ka.GenerateDHE(algo.DHENamedGroup(0))
 	assert.Error(t, err)
 }
 
@@ -3242,10 +3234,10 @@ func TestEdge_AEADUnsupportedSuite(t *testing.T) {
 
 func TestEdge_DHEComputeBadPeerKey(t *testing.T) {
 	ka := &stdlib.StdKeyAgreement{}
-	priv, _, err := ka.GenerateDHE(algo.DHESECP256R1)
+	kp, err := ka.GenerateDHE(algo.DHESECP256R1)
 	require.NoError(t, err)
 	// Bad peer public key (too short/invalid)
-	_, err = ka.ComputeDHE(algo.DHESECP256R1, priv, []byte{0x01, 0x02})
+	_, err = kp.ComputeSharedSecret([]byte{0x01, 0x02})
 	assert.Error(t, err)
 }
 

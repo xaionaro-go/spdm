@@ -16,6 +16,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	spdmcrypto "github.com/xaionaro-go/spdm/pkg/crypto"
 	"github.com/xaionaro-go/spdm/pkg/gen/algo"
 	"github.com/xaionaro-go/spdm/pkg/gen/caps"
 	"github.com/xaionaro-go/spdm/pkg/gen/codes"
@@ -884,17 +885,24 @@ func TestCSRUnmarshalErrorNewFile(t *testing.T) {
 
 // --- mockKeyAgreement for key exchange tests ---
 
+type mockDHEKeyPair struct {
+	pubKey       []byte
+	sharedSecret []byte
+}
+
+func (m *mockDHEKeyPair) PublicKey() []byte { return m.pubKey }
+
+func (m *mockDHEKeyPair) ComputeSharedSecret(_ []byte) ([]byte, error) {
+	return m.sharedSecret, nil
+}
+
 type mockKeyAgreement struct {
 	publicKey    []byte
 	sharedSecret []byte
 }
 
-func (m *mockKeyAgreement) GenerateDHE(_ algo.DHENamedGroup) (interface{}, []byte, error) {
-	return "private", m.publicKey, nil
-}
-
-func (m *mockKeyAgreement) ComputeDHE(_ algo.DHENamedGroup, _ interface{}, _ []byte) ([]byte, error) {
-	return m.sharedSecret, nil
+func (m *mockKeyAgreement) GenerateDHE(_ algo.DHENamedGroup) (spdmcrypto.DHEKeyPair, error) {
+	return &mockDHEKeyPair{pubKey: m.publicKey, sharedSecret: m.sharedSecret}, nil
 }
 
 // --- KEY_EXCHANGE handler test ---

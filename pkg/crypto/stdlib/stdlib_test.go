@@ -306,14 +306,17 @@ func testDHERoundTrip(t *testing.T, group algo.DHENamedGroup, secretLen int) {
 	t.Helper()
 	ka := &StdKeyAgreement{}
 
-	privA, pubA, err := ka.GenerateDHE(group)
+	kpA, err := ka.GenerateDHE(group)
 	require.NoError(t, err)
-	privB, pubB, err := ka.GenerateDHE(group)
-	require.NoError(t, err)
+	pubA := kpA.PublicKey()
 
-	secretA, err := ka.ComputeDHE(group, privA, pubB)
+	kpB, err := ka.GenerateDHE(group)
 	require.NoError(t, err)
-	secretB, err := ka.ComputeDHE(group, privB, pubA)
+	pubB := kpB.PublicKey()
+
+	secretA, err := kpA.ComputeSharedSecret(pubB)
+	require.NoError(t, err)
+	secretB, err := kpB.ComputeSharedSecret(pubA)
 	require.NoError(t, err)
 
 	require.Len(t, secretA, secretLen)
@@ -322,9 +325,9 @@ func testDHERoundTrip(t *testing.T, group algo.DHENamedGroup, secretLen int) {
 
 func TestDHEFFDHE2048Supported(t *testing.T) {
 	ka := &StdKeyAgreement{}
-	_, pub, err := ka.GenerateDHE(algo.DHEFFDHE2048)
+	kp, err := ka.GenerateDHE(algo.DHEFFDHE2048)
 	require.NoError(t, err)
-	require.Len(t, pub, 256)
+	require.Len(t, kp.PublicKey(), 256)
 }
 
 func TestDHESM2P256(t *testing.T) {
@@ -333,42 +336,24 @@ func TestDHESM2P256(t *testing.T) {
 
 func TestDHEUnsupportedGroup(t *testing.T) {
 	ka := &StdKeyAgreement{}
-	_, _, err := ka.GenerateDHE(algo.DHENamedGroup(0x8000))
-	require.Error(t, err)
-}
-
-func TestComputeDHEWrongKeyType(t *testing.T) {
-	ka := &StdKeyAgreement{}
-	_, err := ka.ComputeDHE(algo.DHESECP256R1, "not-a-key", []byte{0})
+	_, err := ka.GenerateDHE(algo.DHENamedGroup(0x8000))
 	require.Error(t, err)
 }
 
 func TestComputeDHEBadPeerPublic(t *testing.T) {
 	ka := &StdKeyAgreement{}
-	priv, _, err := ka.GenerateDHE(algo.DHESECP256R1)
+	kp, err := ka.GenerateDHE(algo.DHESECP256R1)
 	require.NoError(t, err)
-	_, err = ka.ComputeDHE(algo.DHESECP256R1, priv, []byte{0xFF})
-	require.Error(t, err)
-}
-
-func TestComputeDHESM2WrongKeyType(t *testing.T) {
-	ka := &StdKeyAgreement{}
-	_, err := ka.ComputeDHE(algo.DHESM2P256, "not-a-key", make([]byte, 64))
+	_, err = kp.ComputeSharedSecret([]byte{0xFF})
 	require.Error(t, err)
 }
 
 func TestComputeDHESM2BadPeerPublic(t *testing.T) {
 	ka := &StdKeyAgreement{}
-	priv, _, err := ka.GenerateDHE(algo.DHESM2P256)
+	kp, err := ka.GenerateDHE(algo.DHESM2P256)
 	require.NoError(t, err)
 	// Invalid peer public key bytes should fail parsing.
-	_, err = ka.ComputeDHE(algo.DHESM2P256, priv, []byte{0xFF})
-	require.Error(t, err)
-}
-
-func TestComputeDHEUnsupportedGroup(t *testing.T) {
-	ka := &StdKeyAgreement{}
-	_, err := ka.ComputeDHE(algo.DHENamedGroup(0x8000), nil, nil)
+	_, err = kp.ComputeSharedSecret([]byte{0xFF})
 	require.Error(t, err)
 }
 

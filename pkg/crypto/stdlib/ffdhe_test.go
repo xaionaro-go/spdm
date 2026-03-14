@@ -26,63 +26,46 @@ func testFFDHERoundTrip(t *testing.T, group algo.DHENamedGroup, expectedSize int
 	t.Helper()
 	ka := &StdKeyAgreement{}
 
-	privA, pubA, err := ka.GenerateDHE(group)
+	kpA, err := ka.GenerateDHE(group)
 	require.NoError(t, err)
+	pubA := kpA.PublicKey()
 	require.Len(t, pubA, expectedSize)
 
-	privB, pubB, err := ka.GenerateDHE(group)
+	kpB, err := ka.GenerateDHE(group)
 	require.NoError(t, err)
+	pubB := kpB.PublicKey()
 	require.Len(t, pubB, expectedSize)
 
-	secretA, err := ka.ComputeDHE(group, privA, pubB)
+	secretA, err := kpA.ComputeSharedSecret(pubB)
 	require.NoError(t, err)
 	require.Len(t, secretA, expectedSize)
 
-	secretB, err := ka.ComputeDHE(group, privB, pubA)
+	secretB, err := kpB.ComputeSharedSecret(pubA)
 	require.NoError(t, err)
 	require.Len(t, secretB, expectedSize)
 
 	assert.Equal(t, secretA, secretB, "shared secrets must match")
 }
 
-func TestFFDHEComputeWrongKeyType(t *testing.T) {
-	ka := &StdKeyAgreement{}
-	_, err := ka.ComputeDHE(algo.DHEFFDHE2048, "not-a-key", make([]byte, 256))
-	require.Error(t, err)
-}
-
 func TestFFDHEComputeInvalidPeerPublicKeyZero(t *testing.T) {
 	ka := &StdKeyAgreement{}
-	priv, _, err := ka.GenerateDHE(algo.DHEFFDHE2048)
+	kp, err := ka.GenerateDHE(algo.DHEFFDHE2048)
 	require.NoError(t, err)
 
 	// Peer public key = 0 (all zeros) should be rejected.
-	_, err = ka.ComputeDHE(algo.DHEFFDHE2048, priv, make([]byte, 256))
+	_, err = kp.ComputeSharedSecret(make([]byte, 256))
 	require.Error(t, err)
 }
 
 func TestFFDHEComputeInvalidPeerPublicKeyOne(t *testing.T) {
 	ka := &StdKeyAgreement{}
-	priv, _, err := ka.GenerateDHE(algo.DHEFFDHE2048)
+	kp, err := ka.GenerateDHE(algo.DHEFFDHE2048)
 	require.NoError(t, err)
 
 	// Peer public key = 1 should be rejected.
 	one := make([]byte, 256)
 	one[255] = 1
-	_, err = ka.ComputeDHE(algo.DHEFFDHE2048, priv, one)
-	require.Error(t, err)
-}
-
-func TestFFDHEComputeGroupMismatch(t *testing.T) {
-	ka := &StdKeyAgreement{}
-	priv, _, err := ka.GenerateDHE(algo.DHEFFDHE2048)
-	require.NoError(t, err)
-
-	_, pubB, err := ka.GenerateDHE(algo.DHEFFDHE3072)
-	require.NoError(t, err)
-
-	// Mismatched group should fail.
-	_, err = ka.ComputeDHE(algo.DHEFFDHE3072, priv, pubB)
+	_, err = kp.ComputeSharedSecret(one)
 	require.Error(t, err)
 }
 
@@ -113,7 +96,7 @@ func TestGenerateFFDHEUnsupportedGroup(t *testing.T) {
 func TestComputeFFDHEUnsupportedGroup(t *testing.T) {
 	_, err := computeFFDHE(
 		algo.DHENamedGroup(0x9999),
-		&ffdhePrivateKey{Group: algo.DHENamedGroup(0x9999)},
+		&FFDHEPrivateKey{Group: algo.DHENamedGroup(0x9999)},
 		make([]byte, 256),
 	)
 	require.Error(t, err)

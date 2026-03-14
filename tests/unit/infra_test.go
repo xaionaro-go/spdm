@@ -760,9 +760,9 @@ func TestStdKeyAgreementGenerateDHE(t *testing.T) {
 
 	for _, g := range groups {
 		t.Run(g.String(), func(t *testing.T) {
-			priv, pub, err := ka.GenerateDHE(g)
+			kp, err := ka.GenerateDHE(g)
 			require.NoError(t, err)
-			require.NotNil(t, priv)
+			pub := kp.PublicKey()
 			require.NotEmpty(t, pub)
 		})
 	}
@@ -780,15 +780,17 @@ func TestStdKeyAgreementComputeDHE(t *testing.T) {
 	for _, g := range groups {
 		t.Run(g.String(), func(t *testing.T) {
 			// Generate two key pairs.
-			priv1, pub1, err := ka.GenerateDHE(g)
+			kp1, err := ka.GenerateDHE(g)
 			require.NoError(t, err)
-			priv2, pub2, err := ka.GenerateDHE(g)
+			pub1 := kp1.PublicKey()
+			kp2, err := ka.GenerateDHE(g)
 			require.NoError(t, err)
+			pub2 := kp2.PublicKey()
 
 			// Compute shared secret from both sides.
-			secret1, err := ka.ComputeDHE(g, priv1, pub2)
+			secret1, err := kp1.ComputeSharedSecret(pub2)
 			require.NoError(t, err)
-			secret2, err := ka.ComputeDHE(g, priv2, pub1)
+			secret2, err := kp2.ComputeSharedSecret(pub1)
 			require.NoError(t, err)
 
 			assert.Equal(t, secret1, secret2, "shared secrets must match")
@@ -799,9 +801,9 @@ func TestStdKeyAgreementComputeDHE(t *testing.T) {
 
 func TestStdKeyAgreementFFDHESupported(t *testing.T) {
 	ka := &stdlib.StdKeyAgreement{}
-	priv, pub, err := ka.GenerateDHE(algo.DHEFFDHE2048)
+	kp, err := ka.GenerateDHE(algo.DHEFFDHE2048)
 	require.NoError(t, err)
-	assert.NotNil(t, priv)
+	pub := kp.PublicKey()
 	assert.Len(t, pub, algo.DHEFFDHE2048.DHEPublicKeySize())
 }
 

@@ -23,10 +23,11 @@ func (r *Requester) KeyExchange(ctx context.Context, slotID uint8, hashType uint
 	ver := uint8(r.conn.PeerVersion)
 
 	// Generate DHE keypair.
-	privKey, pubKey, err := r.cfg.Crypto.KeyAgreement.GenerateDHE(r.conn.DHEGroup)
+	keyPair, err := r.cfg.Crypto.KeyAgreement.GenerateDHE(r.conn.DHEGroup)
 	if err != nil {
 		return nil, &ErrGenerateDHEKeypair{Err: err}
 	}
+	pubKey := keyPair.PublicKey()
 
 	// Generate random data and request session ID.
 	var randomData [msgs.RandomDataSize]byte
@@ -72,7 +73,7 @@ func (r *Requester) KeyExchange(ctx context.Context, slotID uint8, hashType uint
 	}
 
 	// Compute DHE shared secret.
-	sharedSecret, err := r.cfg.Crypto.KeyAgreement.ComputeDHE(r.conn.DHEGroup, privKey, keResp.ExchangeData)
+	sharedSecret, err := keyPair.ComputeSharedSecret(keResp.ExchangeData)
 	if err != nil {
 		return nil, &ErrComputeDHESharedSecret{Err: err}
 	}

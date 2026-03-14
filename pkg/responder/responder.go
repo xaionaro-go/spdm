@@ -67,6 +67,13 @@ const (
 	StateNegotiated
 )
 
+const (
+	// defaultDataTransferSize is the minimum DataTransferSize per DSP0274 Section 10.4.
+	defaultDataTransferSize = 4096
+	// defaultMaxSPDMmsgSize is the default maximum SPDM message size per DSP0274 Section 10.4.
+	defaultMaxSPDMmsgSize = 65536
+)
+
 // Responder implements the SPDM responder protocol state machine per DSP0274.
 type Responder struct {
 	cfg        Config
@@ -109,10 +116,10 @@ type Responder struct {
 // New creates a new Responder with the given configuration.
 func New(cfg Config) *Responder {
 	if cfg.DataTransferSize == 0 {
-		cfg.DataTransferSize = 4096
+		cfg.DataTransferSize = defaultDataTransferSize
 	}
 	if cfg.MaxSPDMmsgSize == 0 {
-		cfg.MaxSPDMmsgSize = 65536
+		cfg.MaxSPDMmsgSize = defaultMaxSPDMmsgSize
 	}
 	return &Responder{
 		cfg:      cfg,
@@ -188,7 +195,7 @@ func (r *Responder) Serve(ctx context.Context) (_err error) {
 
 // buildError constructs a serialized SPDM ERROR response.
 func (r *Responder) buildError(errCode codes.SPDMErrorCode, errData uint8) []byte {
-	ver := uint8(0x10)
+	ver := uint8(algo.Version10)
 	if r.version != 0 {
 		ver = uint8(r.version)
 	}

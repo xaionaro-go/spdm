@@ -51,26 +51,32 @@ func (m *mockTransport) ReceiveMessage(_ context.Context) (*uint32, []byte, erro
 
 func (m *mockTransport) HeaderSize() int { return 0 }
 
-// mockKeyAgreement implements crypto.KeyAgreement for testing.
-type mockKeyAgreement struct {
+type mockDHEKeyPair struct {
 	pubKey       []byte
 	sharedSecret []byte
-	genErr       error
 	computeErr   error
 }
 
-func (m *mockKeyAgreement) GenerateDHE(_ algo.DHENamedGroup) (interface{}, []byte, error) {
-	if m.genErr != nil {
-		return nil, nil, m.genErr
-	}
-	return "privkey", m.pubKey, nil
-}
+func (m *mockDHEKeyPair) PublicKey() []byte { return m.pubKey }
 
-func (m *mockKeyAgreement) ComputeDHE(_ algo.DHENamedGroup, _ interface{}, _ []byte) ([]byte, error) {
+func (m *mockDHEKeyPair) ComputeSharedSecret(_ []byte) ([]byte, error) {
 	if m.computeErr != nil {
 		return nil, m.computeErr
 	}
 	return m.sharedSecret, nil
+}
+
+// mockKeyAgreement implements crypto.KeyAgreement for testing.
+type mockKeyAgreement struct {
+	keyPair *mockDHEKeyPair
+	genErr  error
+}
+
+func (m *mockKeyAgreement) GenerateDHE(_ algo.DHENamedGroup) (crypto.DHEKeyPair, error) {
+	if m.genErr != nil {
+		return nil, m.genErr
+	}
+	return m.keyPair, nil
 }
 
 // buildVersionResponse builds a canned VERSION response with the given version entries.
@@ -764,7 +770,7 @@ func TestKeyExchange(t *testing.T) {
 		},
 	}
 
-	ka := &mockKeyAgreement{pubKey: pubKey, sharedSecret: sharedSecret}
+	ka := &mockKeyAgreement{keyPair: &mockDHEKeyPair{pubKey: pubKey, sharedSecret: sharedSecret}}
 
 	r := New(Config{
 		Versions:     []algo.Version{algo.Version12},
@@ -804,7 +810,7 @@ func TestKeyExchangeWithMeasHash(t *testing.T) {
 		},
 	}
 
-	ka := &mockKeyAgreement{pubKey: pubKey, sharedSecret: sharedSecret}
+	ka := &mockKeyAgreement{keyPair: &mockDHEKeyPair{pubKey: pubKey, sharedSecret: sharedSecret}}
 
 	r := New(Config{
 		Versions:     []algo.Version{algo.Version12},
@@ -858,10 +864,10 @@ func TestKeyExchangeComputeDHEError(t *testing.T) {
 		},
 	}
 
-	ka := &mockKeyAgreement{
+	ka := &mockKeyAgreement{keyPair: &mockDHEKeyPair{
 		pubKey:     pubKey,
 		computeErr: fmt.Errorf("compute failed"),
-	}
+	}}
 
 	r := New(Config{
 		Transport: mt,
@@ -884,7 +890,7 @@ func TestKeyExchangeSendReceiveError(t *testing.T) {
 			buildErrorResponse(uint8(codes.ErrorBusy), 0),
 		},
 	}
-	ka := &mockKeyAgreement{pubKey: pubKey, sharedSecret: make([]byte, 32)}
+	ka := &mockKeyAgreement{keyPair: &mockDHEKeyPair{pubKey: pubKey, sharedSecret: make([]byte, 32)}}
 
 	r := New(Config{
 		Transport: mt,
@@ -914,7 +920,7 @@ func TestKeyExchangeFinishError(t *testing.T) {
 		},
 	}
 
-	ka := &mockKeyAgreement{pubKey: pubKey, sharedSecret: sharedSecret}
+	ka := &mockKeyAgreement{keyPair: &mockDHEKeyPair{pubKey: pubKey, sharedSecret: sharedSecret}}
 
 	r := New(Config{
 		Transport: mt,
@@ -1102,7 +1108,7 @@ func TestKeyExchangeShortResponseForRandomData(t *testing.T) {
 	resp := append(hdr, sessionFields...)
 
 	mt := &mockTransport{responses: [][]byte{resp}}
-	ka := &mockKeyAgreement{pubKey: pubKey, sharedSecret: sharedSecret}
+	ka := &mockKeyAgreement{keyPair: &mockDHEKeyPair{pubKey: pubKey, sharedSecret: sharedSecret}}
 	r := New(Config{
 		Transport: mt,
 		Crypto:    crypto.Suite{KeyAgreement: ka},
@@ -1129,7 +1135,7 @@ func TestKeyExchangeShortResponseForExchangeData(t *testing.T) {
 	resp = append(resp, randomData...)
 
 	mt := &mockTransport{responses: [][]byte{resp}}
-	ka := &mockKeyAgreement{pubKey: pubKey, sharedSecret: sharedSecret}
+	ka := &mockKeyAgreement{keyPair: &mockDHEKeyPair{pubKey: pubKey, sharedSecret: sharedSecret}}
 	r := New(Config{
 		Transport: mt,
 		Crypto:    crypto.Suite{KeyAgreement: ka},
@@ -1159,7 +1165,7 @@ func TestKeyExchangeShortResponseForMeasHash(t *testing.T) {
 	// No measurement hash, but we request one with TCBComponentMeasurementHash.
 
 	mt := &mockTransport{responses: [][]byte{resp}}
-	ka := &mockKeyAgreement{pubKey: pubKey, sharedSecret: sharedSecret}
+	ka := &mockKeyAgreement{keyPair: &mockDHEKeyPair{pubKey: pubKey, sharedSecret: sharedSecret}}
 	r := New(Config{
 		Transport: mt,
 		Crypto:    crypto.Suite{KeyAgreement: ka},
@@ -1189,7 +1195,7 @@ func TestKeyExchangeShortResponseForOpaqueLength(t *testing.T) {
 	// No opaque length field.
 
 	mt := &mockTransport{responses: [][]byte{resp}}
-	ka := &mockKeyAgreement{pubKey: pubKey, sharedSecret: sharedSecret}
+	ka := &mockKeyAgreement{keyPair: &mockDHEKeyPair{pubKey: pubKey, sharedSecret: sharedSecret}}
 	r := New(Config{
 		Transport: mt,
 		Crypto:    crypto.Suite{KeyAgreement: ka},
@@ -1221,7 +1227,7 @@ func TestKeyExchangeShortResponseForOpaqueData(t *testing.T) {
 	// No opaque data follows.
 
 	mt := &mockTransport{responses: [][]byte{resp}}
-	ka := &mockKeyAgreement{pubKey: pubKey, sharedSecret: sharedSecret}
+	ka := &mockKeyAgreement{keyPair: &mockDHEKeyPair{pubKey: pubKey, sharedSecret: sharedSecret}}
 	r := New(Config{
 		Transport: mt,
 		Crypto:    crypto.Suite{KeyAgreement: ka},
@@ -1253,7 +1259,7 @@ func TestKeyExchangeShortResponseForSignature(t *testing.T) {
 	// No signature follows (needs sigSize = 64 for ECDSA-P256).
 
 	mt := &mockTransport{responses: [][]byte{resp}}
-	ka := &mockKeyAgreement{pubKey: pubKey, sharedSecret: sharedSecret}
+	ka := &mockKeyAgreement{keyPair: &mockDHEKeyPair{pubKey: pubKey, sharedSecret: sharedSecret}}
 	r := New(Config{
 		Transport: mt,
 		Crypto:    crypto.Suite{KeyAgreement: ka},
@@ -1285,7 +1291,7 @@ func TestKeyExchangeFinishUnmarshalError(t *testing.T) {
 		},
 	}
 
-	ka := &mockKeyAgreement{pubKey: pubKey, sharedSecret: sharedSecret}
+	ka := &mockKeyAgreement{keyPair: &mockDHEKeyPair{pubKey: pubKey, sharedSecret: sharedSecret}}
 	r := New(Config{
 		Transport: mt,
 		Crypto:    crypto.Suite{KeyAgreement: ka},
@@ -1328,7 +1334,7 @@ func TestKeyExchangeNoVerifyData(t *testing.T) {
 			buildFinishResponse(0x12),
 		},
 	}
-	ka := &mockKeyAgreement{pubKey: pubKey, sharedSecret: sharedSecret}
+	ka := &mockKeyAgreement{keyPair: &mockDHEKeyPair{pubKey: pubKey, sharedSecret: sharedSecret}}
 	r := New(Config{
 		Transport: mt,
 		Crypto:    crypto.Suite{KeyAgreement: ka},
@@ -1401,7 +1407,7 @@ func TestKeyExchangeShortResponseForSessionFields(t *testing.T) {
 		responses: [][]byte{data},
 	}
 
-	ka := &mockKeyAgreement{pubKey: pubKey, sharedSecret: sharedSecret}
+	ka := &mockKeyAgreement{keyPair: &mockDHEKeyPair{pubKey: pubKey, sharedSecret: sharedSecret}}
 
 	r := New(Config{
 		Transport: mt,

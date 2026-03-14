@@ -14,6 +14,14 @@ import (
 	"github.com/xaionaro-go/spdm/pkg/gen/status"
 )
 
+const (
+	// algCountFixed2Bytes encodes fixed_alg_byte_count=2, ext_alg_count=0
+	// in the AlgCount field per DSP0274 Table 22.
+	algCountFixed2Bytes = 0x20
+	// opaqueDataFmt1 selects OPAQUE_DATA_FMT_1 per DSP0274 Table 21.
+	opaqueDataFmt1 = 0x02
+)
+
 // InitConnection performs the 3-step SPDM connection per DSP0274 Section 9.1:
 // GET_VERSION, GET_CAPABILITIES, NEGOTIATE_ALGORITHMS.
 func (r *Requester) InitConnection(ctx context.Context) (_ret *ConnectionInfo, _err error) {
@@ -36,7 +44,7 @@ func (r *Requester) getVersion(ctx context.Context) error {
 	r.vcaTranscript = nil // reset on new connection
 	req := &msgs.GetVersion{
 		Header: msgs.MessageHeader{SPDMMessageHeader: raw.SPDMMessageHeader{
-			SPDMVersion:         0x10,
+			SPDMVersion:         uint8(algo.Version10),
 			RequestResponseCode: uint8(codes.RequestGetVersion),
 		}},
 	}
@@ -52,7 +60,7 @@ func (r *Requester) getVersion(ctx context.Context) error {
 	}
 
 	// Per DSP0274 Section 10.3, VERSION response SPDMVersion must be 0x10.
-	if vr.Header.SPDMVersion != 0x10 {
+	if vr.Header.SPDMVersion != uint8(algo.Version10) {
 		return &ErrVersionResponseInvalid{SPDMVersion: vr.Header.SPDMVersion}
 	}
 
@@ -144,7 +152,7 @@ func (r *Requester) negotiateAlgorithms(ctx context.Context) error {
 			Param1:              uint8(len(algStructs)),
 		}},
 		MeasurementSpecification: uint8(algo.MeasurementSpecDMTF),
-		OtherParamsSupport:       0x02, // OPAQUE_DATA_FMT_1 per DSP0274 Table 21
+		OtherParamsSupport:       opaqueDataFmt1,
 		BaseAsymAlgo:             uint32(r.cfg.BaseAsymAlgo),
 		BaseHashAlgo:             uint32(r.cfg.BaseHashAlgo),
 		AlgStructs:               algStructs,
@@ -190,7 +198,7 @@ func (r *Requester) buildAlgStructs() []msgs.AlgStructTable {
 	if r.cfg.DHEGroups != 0 {
 		algStructs = append(algStructs, msgs.AlgStructTable{
 			AlgType:      msgs.AlgTypeDHE,
-			AlgCount:     0x20, // fixed_alg_byte_count=2, ext_alg_count=0
+			AlgCount:     algCountFixed2Bytes, // fixed_alg_byte_count=2, ext_alg_count=0
 			AlgSupported: uint16(r.cfg.DHEGroups),
 		})
 	}
@@ -198,7 +206,7 @@ func (r *Requester) buildAlgStructs() []msgs.AlgStructTable {
 	if r.cfg.AEADSuites != 0 {
 		algStructs = append(algStructs, msgs.AlgStructTable{
 			AlgType:      msgs.AlgTypeAEAD,
-			AlgCount:     0x20,
+			AlgCount:     algCountFixed2Bytes,
 			AlgSupported: uint16(r.cfg.AEADSuites),
 		})
 	}
@@ -207,7 +215,7 @@ func (r *Requester) buildAlgStructs() []msgs.AlgStructTable {
 	if r.cfg.Caps.HasMutAuthCap() && r.cfg.BaseAsymAlgo != 0 {
 		algStructs = append(algStructs, msgs.AlgStructTable{
 			AlgType:      msgs.AlgTypeReqBaseAsym,
-			AlgCount:     0x20,
+			AlgCount:     algCountFixed2Bytes,
 			AlgSupported: uint16(r.cfg.BaseAsymAlgo),
 		})
 	}
@@ -216,7 +224,7 @@ func (r *Requester) buildAlgStructs() []msgs.AlgStructTable {
 	if r.cfg.Caps.HasKeyExCap() {
 		algStructs = append(algStructs, msgs.AlgStructTable{
 			AlgType:      msgs.AlgTypeKeySchedule,
-			AlgCount:     0x20,
+			AlgCount:     algCountFixed2Bytes,
 			AlgSupported: uint16(algo.KeyScheduleSPDM),
 		})
 	}

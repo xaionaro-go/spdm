@@ -8,8 +8,8 @@ import (
 	"github.com/xaionaro-go/spdm/pkg/gen/algo"
 )
 
-// ffdhePrivateKey holds the private key material for an FFDHE key exchange.
-type ffdhePrivateKey struct {
+// FFDHEPrivateKey holds the private key material for an FFDHE key exchange.
+type FFDHEPrivateKey struct {
 	Group algo.DHENamedGroup
 	X     *big.Int
 }
@@ -54,7 +54,7 @@ func mustParsePrime(hex string) *big.Int {
 // generateFFDHE generates a random private key and the corresponding public key
 // for the given FFDHE group. The public key is g^x mod p, returned as a
 // fixed-size big-endian byte slice.
-func generateFFDHE(group algo.DHENamedGroup) (*ffdhePrivateKey, []byte, error) {
+func generateFFDHE(group algo.DHENamedGroup) (*FFDHEPrivateKey, []byte, error) {
 	params, ok := ffdheGroupParams[group]
 	if !ok {
 		return nil, nil, ErrUnsupportedDHEGroup{Name: "FFDHE", Group: group}
@@ -73,14 +73,14 @@ func generateFFDHE(group algo.DHENamedGroup) (*ffdhePrivateKey, []byte, error) {
 	pub := new(big.Int).Exp(params.G, x, params.P)
 
 	pubBytes := padBigEndian(pub, params.Size)
-	return &ffdhePrivateKey{Group: group, X: x}, pubBytes, nil
+	return &FFDHEPrivateKey{Group: group, X: x}, pubBytes, nil
 }
 
 // computeFFDHE computes the shared secret peerPublic^x mod p for the given
 // FFDHE group, returning a fixed-size big-endian byte slice.
 func computeFFDHE(
 	group algo.DHENamedGroup,
-	priv *ffdhePrivateKey,
+	priv *FFDHEPrivateKey,
 	peerPublic []byte,
 ) ([]byte, error) {
 	params, ok := ffdheGroupParams[group]

@@ -11,6 +11,14 @@ import (
 	"github.com/xaionaro-go/spdm/pkg/gen/raw"
 )
 
+const (
+	// algCountFixed2Bytes encodes fixed_alg_byte_count=2, ext_alg_count=0
+	// in the AlgCount field per DSP0274 Table 22.
+	algCountFixed2Bytes = 0x20
+	// opaqueDataFmt1 selects OPAQUE_DATA_FMT_1 per DSP0274 Table 21.
+	opaqueDataFmt1 = 0x02
+)
+
 func (r *Responder) handleNegotiateAlgorithms(ctx context.Context, request []byte) ([]byte, error) {
 	var req msgs.NegotiateAlgorithms
 	if err := req.Unmarshal(request); err != nil {
@@ -37,7 +45,7 @@ func (r *Responder) handleNegotiateAlgorithms(ctx context.Context, request []byt
 			r.dheGroup = algo.DHENamedGroup(sel)
 			respAlgStructs = append(respAlgStructs, msgs.AlgStructTable{
 				AlgType:      msgs.AlgTypeDHE,
-				AlgCount:     0x20, // fixed_alg_byte_count=2, ext_count=0
+				AlgCount:     algCountFixed2Bytes, // fixed_alg_byte_count=2, ext_count=0
 				AlgSupported: sel,
 			})
 		case msgs.AlgTypeAEAD:
@@ -45,7 +53,7 @@ func (r *Responder) handleNegotiateAlgorithms(ctx context.Context, request []byt
 			r.aeadSuite = algo.AEADCipherSuite(sel)
 			respAlgStructs = append(respAlgStructs, msgs.AlgStructTable{
 				AlgType:      msgs.AlgTypeAEAD,
-				AlgCount:     0x20,
+				AlgCount:     algCountFixed2Bytes,
 				AlgSupported: sel,
 			})
 		case msgs.AlgTypeReqBaseAsym:
@@ -53,21 +61,21 @@ func (r *Responder) handleNegotiateAlgorithms(ctx context.Context, request []byt
 			sel := selectAlgorithm16(uint16(r.cfg.BaseAsymAlgo), a.AlgSupported)
 			respAlgStructs = append(respAlgStructs, msgs.AlgStructTable{
 				AlgType:      msgs.AlgTypeReqBaseAsym,
-				AlgCount:     0x20,
+				AlgCount:     algCountFixed2Bytes,
 				AlgSupported: sel,
 			})
 		case msgs.AlgTypeKeySchedule:
 			sel := selectAlgorithm16(uint16(algo.KeyScheduleSPDM), a.AlgSupported)
 			respAlgStructs = append(respAlgStructs, msgs.AlgStructTable{
 				AlgType:      msgs.AlgTypeKeySchedule,
-				AlgCount:     0x20,
+				AlgCount:     algCountFixed2Bytes,
 				AlgSupported: sel,
 			})
 		default:
 			// Echo back with zero selection for unsupported types.
 			respAlgStructs = append(respAlgStructs, msgs.AlgStructTable{
 				AlgType:      a.AlgType,
-				AlgCount:     0x20,
+				AlgCount:     algCountFixed2Bytes,
 				AlgSupported: 0,
 			})
 		}
@@ -80,10 +88,10 @@ func (r *Responder) handleNegotiateAlgorithms(ctx context.Context, request []byt
 	// BaseHashAlgo and MeasurementHashAlgo use different bit positions per DSP0274.
 	measHashAlgo := baseHashToMeasHash(algo.BaseHashAlgo(hashSel))
 
-	// OtherParamsSelection: select OPAQUE_DATA_FMT_1 (0x02) if the requester supports it.
+	// OtherParamsSelection: select OPAQUE_DATA_FMT_1 if the requester supports it.
 	var otherParamsSel uint8
-	if req.OtherParamsSupport&0x02 != 0 {
-		otherParamsSel = 0x02
+	if req.OtherParamsSupport&opaqueDataFmt1 != 0 {
+		otherParamsSel = opaqueDataFmt1
 	}
 
 	// If responder doesn't support measurements, set measHashAlgo to 0.
